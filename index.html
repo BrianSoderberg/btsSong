@@ -529,8 +529,8 @@
   const CHORDISH_FILLER_RE = /^(N\.?C\.?|NC|%|x[0-9]+|\/{1,4}|-{1,4})$/i;
   // Guitar tab lines like "e|-x--------x-----------------|" or "B|-2--2--" — no reserved chord slot for these
   const TAB_LINE_RE = /^[A-Ga-g](#|b)?\d?\s*\|[-\dxX|~hpb/\\ ]{3,}\|?$/;
-  // No-pipe fret-column tab rows, e.g. " e  x     x    x    0   0    0   0"
-  const TAB_ROW_NOPIPE_RE = /^[eEbBgGdDaA]\s{1,4}([0-9]+|[xX]|-+)(\s+([0-9]+|[xX]|-+))+$/;
+  // No-pipe fret-column tab rows, e.g. " e  x     x    x    0   0    0   0" or " b 12--10--7--10--7"
+  const TAB_ROW_NOPIPE_RE = /^[eEbBgGdDaA]\s+[0-9xX\-\s]{3,}$/;
   const SECTION_WORD_RE = /^(Intro|Verse|Pre-?Chorus|Chorus|Bridge|Outro|Interlude|Tag|Hook|Refrain|Instrumental|Solo|Ending|Break|Vamp|Turnaround)\.?[0-9]*:?$/i;
   function looksLikeTabHeader(text){
     const tokens = text.trim().split(/\s+/);
@@ -555,6 +555,25 @@
 
   function stripBOM(text){
     return typeof text === 'string' ? text.replace(/^[\uFEFF\u200B\uFFFD]+/, '') : text;
+  }
+
+  // Detects a UTF-16 LE/BE BOM (common from Windows Notepad's "Unicode" save option) and decodes
+  // correctly, since fetch()/FileReader normally assume UTF-8 and would corrupt such files —
+  // showing a stray box between every character and breaking all pattern matching.
+  function decodeText(buffer){
+    const bytes = new Uint8Array(buffer);
+    if(bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE){
+      return new TextDecoder('utf-16le').decode(bytes.subarray(2));
+    }
+    if(bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF){
+      try{ return new TextDecoder('utf-16be').decode(bytes.subarray(2)); }
+      catch(e){
+        const swapped = new Uint8Array(bytes.length - 2);
+        for(let i=2;i<bytes.length-1;i+=2){ swapped[i-2]=bytes[i+1]; swapped[i-1]=bytes[i]; }
+        return new TextDecoder('utf-16le').decode(swapped);
+      }
+    }
+    return new TextDecoder('utf-8').decode(bytes); // also strips a UTF-8 BOM automatically
   }
 
   function parseSongMeta(rawText){
@@ -1022,7 +1041,7 @@
     if(!song.content && song.url){
       try{
         const res = await fetch(song.url);
-        song.content = stripBOM(await res.text());
+        song.content = stripBOM(decodeText(await res.arrayBuffer()));
       }catch(e){
         song.content = 'Error: could not load ' + song.name;
       }
@@ -1055,12 +1074,12 @@
           id: 'local:'+file.name,
           name: file.name.replace(/\.(onsong|txt)$/i,''),
           source: 'local',
-          content: stripBOM(reader.result),
+          content: stripBOM(decodeText(reader.result)),
         });
         remaining--;
         if(remaining===0){ saveLocalSongs(); renderList(); }
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     });
   }
 
@@ -1156,7 +1175,7 @@
       let added = 0;
       for(const fileHandle of out.files){
         const file = await fileHandle.getFile();
-        const content = stripBOM(await file.text());
+        const content = stripBOM(decodeText(await file.arrayBuffer()));
         addSong({ id:'local:'+file.name, name: file.name.replace(/\.onsong$/i,''), source:'local', content, fileHandle });
         added++;
       }
@@ -1372,13 +1391,13 @@
       const id = 'local:'+file.name;
       addSong({
         id, name: file.name.replace(/\.(onsong|txt)$/i,''),
-        source:'local', content: stripBOM(reader.result),
+        source:'local', content: stripBOM(decodeText(reader.result)),
       });
       saveLocalSongs();
       renderList();
       selectSong(id);
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
     openFileInput.value = ''; // allow re-picking the same file later
   };
   document.getElementById('rescanBtn').onclick = ()=> discoverGithubSongs();
