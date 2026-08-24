@@ -141,7 +141,7 @@
 
   .chartHead{ max-width:820px; margin:0 auto 26px; }
   .chartHead h1{
-    font-family:'Bebas Neue','Oswald','Arial Narrow',sans-serif; font-size:42px; letter-spacing:.5px; margin:0 0 2px;
+    font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif; font-weight:800; font-size:38px; letter-spacing:-.3px; margin:0 0 2px;
     color:var(--text);
   }
   .chartHead .artist{ font-size:16px; color:var(--text-dim); margin-bottom:12px; }
@@ -553,8 +553,15 @@
     return text.replace(/\S+/g, tok => CHORDISH_RE.test(tok) ? transposeChord(tok, semis) : tok);
   }
 
+  function stripBOM(text){
+    return typeof text === 'string' ? text.replace(/^[\uFEFF\u200B\uFFFD]+/, '') : text;
+  }
+
   function parseSongMeta(rawText){
-    const lines = rawText.replace(/\r\n/g,'\n').split('\n');
+    // Strip a leading UTF-8/UTF-16 BOM and stray zero-width characters some editors (e.g. Notepad) add,
+    // which otherwise show up as garbled boxes at the very start of the title.
+    const cleaned = rawText.replace(/^[\uFEFF\u200B\uFFFD]+/, '');
+    const lines = cleaned.replace(/\r\n/g,'\n').split('\n');
     let title = null, artist = null;
     const meta = {};
     let bodyStart = 0;
@@ -1015,7 +1022,7 @@
     if(!song.content && song.url){
       try{
         const res = await fetch(song.url);
-        song.content = await res.text();
+        song.content = stripBOM(await res.text());
       }catch(e){
         song.content = 'Error: could not load ' + song.name;
       }
@@ -1048,7 +1055,7 @@
           id: 'local:'+file.name,
           name: file.name.replace(/\.(onsong|txt)$/i,''),
           source: 'local',
-          content: reader.result,
+          content: stripBOM(reader.result),
         });
         remaining--;
         if(remaining===0){ saveLocalSongs(); renderList(); }
@@ -1149,7 +1156,7 @@
       let added = 0;
       for(const fileHandle of out.files){
         const file = await fileHandle.getFile();
-        const content = await file.text();
+        const content = stripBOM(await file.text());
         addSong({ id:'local:'+file.name, name: file.name.replace(/\.onsong$/i,''), source:'local', content, fileHandle });
         added++;
       }
@@ -1365,7 +1372,7 @@
       const id = 'local:'+file.name;
       addSong({
         id, name: file.name.replace(/\.(onsong|txt)$/i,''),
-        source:'local', content: reader.result,
+        source:'local', content: stripBOM(reader.result),
       });
       saveLocalSongs();
       renderList();
