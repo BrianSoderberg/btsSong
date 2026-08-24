@@ -1,3 +1,0 @@
-Add your BTS song lyrics here.
-
-You can replace this file, split lyrics into multiple files, or add a `lyrics/` directory.
