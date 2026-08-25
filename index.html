@@ -575,6 +575,15 @@
   function transposeChordLineText(text, semis){
     return text.replace(/\S+/g, tok => CHORDISH_RE.test(tok) ? transposeChord(tok, semis) : tok);
   }
+  // A line made entirely of [bracket] chords (with only whitespace outside them) — e.g. "[G]   [D] [Bm]" —
+  // is really a chord-label line for the lyric line below it, not a self-contained inline-chord line.
+  function isBracketChordOnlyLine(text){
+    if(!text.includes('[')) return false;
+    return text.replace(/\[[^\]]+\]/g, '').trim() === '';
+  }
+  function stripBracketsKeepContent(text){
+    return text.replace(/\[([^\]]+)\]/g, '$1');
+  }
 
   function stripBOM(text){
     return typeof text === 'string' ? text.replace(/^[\uFEFF\u200B\uFFFD]+/, '') : text;
@@ -900,11 +909,27 @@
           const nextTrim = parsed.lines[i+1].trim();
           const nextRest = extractLinePrefix(nextTrim).rest;
           if(nextTrim !== '' && !DIRECTIVE_RE.test(nextTrim) && !nextTrim.startsWith('#') &&
-             !SECTION_RE.test(nextRest) && !looksLikeChordLine(nextRest)){
+             !LINE_PREFIX_RE.test(nextTrim) && !SECTION_RE.test(nextRest) && !looksLikeChordLine(nextRest)){
             lyricRaw = parsed.lines[i+1];
           }
         }
         chart.appendChild(renderChordLyricPair(raw, lyricRaw, semis, style));
+        if(lyricRaw !== null) i++;
+        continue;
+      }
+
+      if(isBracketChordOnlyLine(rest)){
+        let lyricRaw = null;
+        if(i+1 < parsed.lines.length){
+          const nextTrim = parsed.lines[i+1].trim();
+          const nextRest = extractLinePrefix(nextTrim).rest;
+          if(nextTrim !== '' && !DIRECTIVE_RE.test(nextTrim) && !nextTrim.startsWith('#') &&
+             !LINE_PREFIX_RE.test(nextTrim) && !SECTION_RE.test(nextRest) &&
+             !looksLikeChordLine(nextRest) && !isBracketChordOnlyLine(nextRest)){
+            lyricRaw = parsed.lines[i+1];
+          }
+        }
+        chart.appendChild(renderChordLyricPair(stripBracketsKeepContent(raw), lyricRaw, semis, style));
         if(lyricRaw !== null) i++;
         continue;
       }
