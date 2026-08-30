@@ -1,0 +1,28 @@
+Welcome To The Setlist Viewer
+Demo Song
+
+Key: G
+Capo: 0
+Tempo: 100
+Time: 4/4
+
+&red:Intro:
+[G]   [C]   [D]
+
+&red:Verse 1:
+[G]This is just a [C]demo song
+[D]Showing how the [G]chords line up
+[G]Chords in green, [C]sections up in red
+[D]Comments look like [G]this instead
+
+&blue:strum gently:
+# This whole line is a muted comment, not sung
+
+&red:Chorus:
+[G]Pick a real [C]band from the [D]menu up top
+[G]Your actual [C]setlists start [D]right after that
+[G]This page is just [C]here to say hello
+[D]While you find your [G]way around
+
+&red:Outro:
+[G]   [C]   [D]   [G]
