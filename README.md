@@ -12,6 +12,7 @@ Structure
 How to use
 - Add files or folders as you normally would.
 - If you want to add lyrics, edit lyrics.txt or create new files in a lyrics/ directory.
+
 Building a setlist
 - Build the setlist in the app, as normal.
 - Tap ⇩ Export setlists — downloads setlists.json.
